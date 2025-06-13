@@ -1,32 +1,30 @@
 require('dotenv').config();
 const express = require('express');
 const app = express();
-const db = require('./models');
+const path = require('path'); // Diperlukan untuk express.static
 
 // Middlewares
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.urlencoded({ extended: true }));
 
-// Routes
-const authRoutes = require('./routes/auth.routes');
-const filmRoutes = require('./routes/film.routes');
+// Membuat folder 'uploads' bisa diakses secara publik lewat URL
+// Pastikan folder 'uploads' ada di root proyek Anda
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// --- HANYA ADA SATU DEKLARASI RUTE DI SINI ---
 const authRoutes = require('./routes/auth.routes.js');
+const filmRoutes = require('./routes/film.routes.js');
 
+// Menggunakan Rute
 app.use('/api/auth', authRoutes);
 app.use('/api/films', filmRoutes);
-app.use('/uploads', express.static('uploads'));
 
+// Rute dasar
 app.get('/', (req, res) => {
-    res.send('Selamat Datang di Film API!');
+    res.send('Selamat Datang di Film API! Waktu server: ' + new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }));
 });
 
 const PORT = process.env.PORT || 8080;
-
-// Sinkronisasi database (opsional, bagus untuk development)
-// db.sequelize.sync({ force: true }).then(() => {
-//   console.log("Database synced");
-// });
 
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}.`);
