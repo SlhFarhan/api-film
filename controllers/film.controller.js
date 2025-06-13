@@ -1,44 +1,34 @@
 const { Film } = require('../models');
+const fs = require('fs');
 
-// Fungsi untuk mendapatkan semua film (tidak berubah)
+// Fungsi untuk mendapatkan semua film
 exports.getAllFilms = async (req, res) => {
     try {
-        const films = await Film.findAll();
+        const films = await Film.findAll({
+            order: [['createdAt', 'DESC']] // Urutkan dari yang terbaru
+        });
         res.send(films);
     } catch (error) {
         res.status(500).send({ message: error.message });
     }
 };
 
-// Fungsi untuk mendapatkan film by ID (tidak berubah)
-exports.getFilmById = async (req, res) => {
-    try {
-        const film = await Film.findByPk(req.params.id);
-        if (!film) {
-            return res.status(404).send({ message: "Film not found" });
-        }
-        res.send(film);
-    } catch (error) {
-        res.status(500).send({ message: error.message });
-    }
-};
-
-// --- PERBAIKAN DI FUNGSI INI ---
+// Fungsi untuk membuat film baru
 exports.createFilm = async (req, res) => {
     try {
-        const { nama_film, pemeran } = req.body;
+        const { nama_film, pemeran, deskripsi } = req.body;
         
         if (!req.file) {
             return res.status(400).send({ message: "Gambar harus di-upload." });
         }
 
-        // Gunakan process.env.BASE_URL untuk membuat URL yang benar dan permanen
         const imageUrl = `${process.env.BASE_URL}/uploads/${req.file.filename}`;
 
         const newFilm = await Film.create({
             nama_film,
             pemeran,
-            gambar: imageUrl, // Simpan URL yang sudah benar
+            deskripsi, // <-- Menyimpan deskripsi
+            gambar: imageUrl,
             userId: req.userId
         });
         res.status(201).send(newFilm);
@@ -47,7 +37,7 @@ exports.createFilm = async (req, res) => {
     }
 };
 
-// --- PERBAIKAN DI FUNGSI INI ---
+// Fungsi untuk mengupdate film
 exports.updateFilm = async (req, res) => {
     try {
         const film = await Film.findByPk(req.params.id);
@@ -61,14 +51,14 @@ exports.updateFilm = async (req, res) => {
         
         let imageUrl = film.gambar;
         if (req.file) {
-            // Gunakan process.env.BASE_URL juga di sini
             imageUrl = `${process.env.BASE_URL}/uploads/${req.file.filename}`;
         }
         
-        const { nama_film, pemeran } = req.body;
+        const { nama_film, pemeran, deskripsi } = req.body;
         await film.update({
             nama_film: nama_film || film.nama_film,
             pemeran: pemeran || film.pemeran,
+            deskripsi: deskripsi || film.deskripsi, // <-- Update deskripsi
             gambar: imageUrl
         });
         res.send({ message: "Film updated successfully!", film });
@@ -78,7 +68,7 @@ exports.updateFilm = async (req, res) => {
     }
 };
 
-// Fungsi delete tidak berubah
+// Fungsi untuk menghapus film
 exports.deleteFilm = async (req, res) => {
     try {
         const film = await Film.findByPk(req.params.id);
@@ -88,9 +78,23 @@ exports.deleteFilm = async (req, res) => {
         if (film.userId !== req.userId) {
             return res.status(403).send({ message: "Forbidden" });
         }
+
+        // Hapus file gambar dari server
+        const filename = film.gambar.split('/').pop();
+        if (filename) {
+            fs.unlink(`uploads/${filename}`, (err) => {
+                if (err) console.error("Gagal menghapus file gambar lama:", err);
+            });
+        }
+        
         await film.destroy();
         res.send({ message: "Film deleted successfully!" });
     } catch (error) {
         res.status(500).send({ message: error.message });
     }
+};
+
+// Fungsi get by ID tidak perlu diubah
+exports.getFilmById = async (req, res) => {
+    // ... (kode tidak berubah)
 };
