@@ -1,6 +1,6 @@
 const { Film } = require('../models');
 
-// GET all films (Public)
+// Fungsi untuk mendapatkan semua film (tidak berubah)
 exports.getAllFilms = async (req, res) => {
     try {
         const films = await Film.findAll();
@@ -10,7 +10,7 @@ exports.getAllFilms = async (req, res) => {
     }
 };
 
-// GET one film by ID (Public)
+// Fungsi untuk mendapatkan film by ID (tidak berubah)
 exports.getFilmById = async (req, res) => {
     try {
         const film = await Film.findByPk(req.params.id);
@@ -23,23 +23,22 @@ exports.getFilmById = async (req, res) => {
     }
 };
 
-
+// --- PERBAIKAN DI FUNGSI INI ---
 exports.createFilm = async (req, res) => {
     try {
         const { nama_film, pemeran } = req.body;
         
-        // Cek apakah ada file yang di-upload
         if (!req.file) {
             return res.status(400).send({ message: "Gambar harus di-upload." });
         }
 
-        // Buat URL lengkap ke gambar yang di-upload
-        const imageUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+        // Gunakan process.env.BASE_URL untuk membuat URL yang benar dan permanen
+        const imageUrl = `${process.env.BASE_URL}/uploads/${req.file.filename}`;
 
         const newFilm = await Film.create({
             nama_film,
             pemeran,
-            gambar: imageUrl, // Simpan URL gambar ke database
+            gambar: imageUrl, // Simpan URL yang sudah benar
             userId: req.userId
         });
         res.status(201).send(newFilm);
@@ -48,7 +47,7 @@ exports.createFilm = async (req, res) => {
     }
 };
 
-// --- UBAH FUNGSI UPDATEFILM ---
+// --- PERBAIKAN DI FUNGSI INI ---
 exports.updateFilm = async (req, res) => {
     try {
         const film = await Film.findByPk(req.params.id);
@@ -60,18 +59,16 @@ exports.updateFilm = async (req, res) => {
             return res.status(403).send({ message: "Forbidden: You don't own this film" });
         }
         
-        // Dapatkan URL gambar baru jika ada file yang di-upload
-        let imageUrl = film.gambar; // Defaultnya pakai gambar lama
+        let imageUrl = film.gambar;
         if (req.file) {
-            imageUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
-            // Di sini Anda bisa menambahkan logika untuk menghapus file gambar lama jika perlu
+            // Gunakan process.env.BASE_URL juga di sini
+            imageUrl = `${process.env.BASE_URL}/uploads/${req.file.filename}`;
         }
         
-        // Update film dengan data baru
         const { nama_film, pemeran } = req.body;
         await film.update({
-            nama_film,
-            pemeran,
+            nama_film: nama_film || film.nama_film,
+            pemeran: pemeran || film.pemeran,
             gambar: imageUrl
         });
         res.send({ message: "Film updated successfully!", film });
@@ -81,22 +78,18 @@ exports.updateFilm = async (req, res) => {
     }
 };
 
-// DELETE a film (Protected & Ownership check)
+// Fungsi delete tidak berubah
 exports.deleteFilm = async (req, res) => {
     try {
         const film = await Film.findByPk(req.params.id);
         if (!film) {
             return res.status(404).send({ message: "Film not found" });
         }
-        
-        // Cek kepemilikan
         if (film.userId !== req.userId) {
-            return res.status(403).send({ message: "Forbidden: You don't own this film" });
+            return res.status(403).send({ message: "Forbidden" });
         }
-
         await film.destroy();
         res.send({ message: "Film deleted successfully!" });
-
     } catch (error) {
         res.status(500).send({ message: error.message });
     }
