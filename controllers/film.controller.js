@@ -24,15 +24,23 @@ exports.getFilmById = async (req, res) => {
 };
 
 
-// POST a new film (Protected)
 exports.createFilm = async (req, res) => {
     try {
-        const { nama_film, pemeran, gambar } = req.body;
+        const { nama_film, pemeran } = req.body;
+        
+        // Cek apakah ada file yang di-upload
+        if (!req.file) {
+            return res.status(400).send({ message: "Gambar harus di-upload." });
+        }
+
+        // Buat URL lengkap ke gambar yang di-upload
+        const imageUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+
         const newFilm = await Film.create({
             nama_film,
             pemeran,
-            gambar,
-            userId: req.userId // Diambil dari token JWT
+            gambar: imageUrl, // Simpan URL gambar ke database
+            userId: req.userId
         });
         res.status(201).send(newFilm);
     } catch (error) {
@@ -40,7 +48,7 @@ exports.createFilm = async (req, res) => {
     }
 };
 
-// PUT to update a film (Protected & Ownership check)
+// --- UBAH FUNGSI UPDATEFILM ---
 exports.updateFilm = async (req, res) => {
     try {
         const film = await Film.findByPk(req.params.id);
@@ -48,19 +56,30 @@ exports.updateFilm = async (req, res) => {
             return res.status(404).send({ message: "Film not found" });
         }
 
-        // Cek kepemilikan
         if (film.userId !== req.userId) {
             return res.status(403).send({ message: "Forbidden: You don't own this film" });
         }
         
-        await film.update(req.body);
+        // Dapatkan URL gambar baru jika ada file yang di-upload
+        let imageUrl = film.gambar; // Defaultnya pakai gambar lama
+        if (req.file) {
+            imageUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+            // Di sini Anda bisa menambahkan logika untuk menghapus file gambar lama jika perlu
+        }
+        
+        // Update film dengan data baru
+        const { nama_film, pemeran } = req.body;
+        await film.update({
+            nama_film,
+            pemeran,
+            gambar: imageUrl
+        });
         res.send({ message: "Film updated successfully!", film });
 
     } catch (error) {
         res.status(500).send({ message: error.message });
     }
 };
-
 
 // DELETE a film (Protected & Ownership check)
 exports.deleteFilm = async (req, res) => {

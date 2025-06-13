@@ -6,13 +6,16 @@ const db = require('./models');
 // Middlewares
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: true }));
 
 // Routes
 const authRoutes = require('./routes/auth.routes');
 const filmRoutes = require('./routes/film.routes');
+const authRoutes = require('./routes/auth.routes.js');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/films', filmRoutes);
+app.use('/uploads', express.static('uploads'));
 
 app.get('/', (req, res) => {
     res.send('Selamat Datang di Film API!');
