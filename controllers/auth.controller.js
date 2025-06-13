@@ -1,47 +1,51 @@
+// controllers/auth.controller.js
 const { User } = require('../models');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { OAuth2Client } = require('google-auth-library'); // <-- Import library
 
-exports.register = async (req, res) => {
+// Inisialisasi Google Auth Client
+// Ganti CLIENT_ID dengan Google Client ID Anda dari console.cloud.google.com
+// Biasanya sama dengan yang Anda pakai di Android (tanpa .apps.googleusercontent.com)
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID); 
+
+// ... (fungsi register dan login yang sudah ada) ...
+
+// TAMBAHKAN FUNGSI BARU INI
+exports.googleLogin = async (req, res) => {
+    const { token } = req.body; // Menerima googleIdToken dari client
+
     try {
-        const { email, password } = req.body;
-        if (!email || !password) {
-            return res.status(400).send({ message: "Email and password are required" });
-        }
+        const ticket = await client.verifyIdToken({
+            idToken: token,
+            audience: process.env.GOOGLE_CLIENT_ID,
+        });
 
-        const hashedPassword = await bcrypt.hash(password, 8);
-        const user = await User.create({ email, password: hashedPassword });
+        const payload = ticket.getPayload();
+        const { email, name } = payload;
 
-        res.status(201).send({ message: "User registered successfully!", userId: user.id });
-    } catch (error) {
-        res.status(500).send({ message: error.message });
-    }
-};
+        // Cari user di database, atau buat baru jika belum ada
+        const [user, created] = await User.findOrCreate({
+            where: { email: email },
+            defaults: {
+                // Password bisa diisi random karena loginnya tidak pakai password
+                password: await bcrypt.hash(Math.random().toString(36), 8), 
+            }
+        });
 
-exports.login = async (req, res) => {
-    try {
-        const { email, password } = req.body;
-        const user = await User.findOne({ where: { email } });
-
-        if (!user) {
-            return res.status(404).send({ message: "User not found" });
-        }
-
-        const passwordIsValid = bcrypt.compareSync(password, user.password);
-        if (!passwordIsValid) {
-            return res.status(401).send({ accessToken: null, message: "Invalid Password!" });
-        }
-
-        const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
-            expiresIn: 86400 // 24 hours
+        // Buat accessToken (JWT) milik API kita
+        const accessToken = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
+            expiresIn: 86400 // 24 jam
         });
 
         res.status(200).send({
             id: user.id,
             email: user.email,
-            accessToken: token
+            accessToken: accessToken
         });
+
     } catch (error) {
-        res.status(500).send({ message: error.message });
+        console.error("Google login error:", error);
+        res.status(401).send({ message: "Invalid Google Token" });
     }
 };
