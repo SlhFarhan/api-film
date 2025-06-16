@@ -51,6 +51,14 @@ exports.updateFilm = async (req, res) => {
         
         let imageUrl = film.gambar;
         if (req.file) {
+            // PERBAIKAN #2: Tambahkan logika untuk menghapus file gambar lama
+            if (film.gambar) {
+                const oldFilename = film.gambar.split('/').pop();
+                fs.unlink(path.join(__dirname, '..', 'uploads', oldFilename), (err) => {
+                    if (err) console.error("Gagal menghapus file lama:", err);
+                });
+            }
+            // Buat URL lengkap untuk file baru
             imageUrl = `${process.env.BASE_URL}/uploads/${req.file.filename}`;
         }
         
@@ -58,10 +66,12 @@ exports.updateFilm = async (req, res) => {
         await film.update({
             nama_film: nama_film || film.nama_film,
             pemeran: pemeran || film.pemeran,
-            deskripsi: deskripsi || film.deskripsi, // <-- Update deskripsi
+            deskripsi: deskripsi || film.deskripsi,
             gambar: imageUrl
         });
-        res.send({ message: "Film updated successfully!", film });
+
+        // PERBAIKAN #1: Kirim kembali objek 'film' yang sudah diupdate secara langsung
+        res.send(film);
 
     } catch (error) {
         res.status(500).send({ message: error.message });
